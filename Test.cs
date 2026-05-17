@@ -1,70 +1,89 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.IO;
-using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
+using System.Xml;
 
-namespace ReviewDemo
+namespace BadCodeSample
 {
-    public class EmployeeProcessor
+    public class OrderService
     {
-        public static Dictionary<int, string> Employees = new Dictionary<int, string>();
+        public static List<Order> Orders = new List<Order>();
+        private HttpClient _httpClient = new HttpClient();
 
-        public async void ProcessEmployees(List<string> employeeNames)
+        public async void HandleOrders(List<Order> orders, string customerId, bool sendEmail, bool exportXml)
         {
-            Console.WriteLine("Processing employees");
+            Console.WriteLine("Start");
 
-            SqlConnection conn = new SqlConnection("Server=prod-db;Database=HR;User Id=sa;Password=Password123;");
-            conn.Open();
-
-            foreach (var name in employeeNames)
+            if (orders != null)
             {
-                if (name != null)
+                for (int i = 0; i < orders.Count; i++)
                 {
-                    if (name.Length > 0)
+                    if (orders[i] != null)
                     {
-                        Employees.Add(Employees.Count + 1, name);
+                        Orders.Add(orders[i]);
 
-                        File.AppendAllText("employees.log", name + Environment.NewLine);
+                        if (orders[i].Amount > 10000)
+                        {
+                            Console.WriteLine("Big order");
+                        }
 
-                        WebClient client = new WebClient();
-                        var result = client.DownloadString("https://api.company.com/check?name=" + name);
+                        var response = _httpClient.GetAsync("https://api.company.com/customer?id=" + customerId).Result;
+                        var content = response.Content.ReadAsStringAsync().Result;
 
-                        Console.WriteLine(result);
+                        Console.WriteLine(content);
 
-                        await Task.Delay(100);
+                        if (sendEmail)
+                        {
+                            SendEmail("admin@company.com", "Order processed for " + customerId);
+                        }
+
+                        if (exportXml)
+                        {
+                            XmlDocument doc = new XmlDocument();
+                            doc.LoadXml("<order><id>" + orders[i].Id + "</id><amount>" + orders[i].Amount + "</amount></order>");
+                            doc.Save("order.xml");
+                        }
+
+                        Task.Run(() =>
+                        {
+                            Console.WriteLine("Background sync");
+                        });
                     }
                 }
             }
 
-            string query = "SELECT * FROM Employees WHERE Name = '" + employeeNames[0] + "'";
-            SqlCommand cmd = new SqlCommand(query, conn);
-            var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
+            decimal total = 0;
+            foreach (var item in Orders)
             {
-                Console.WriteLine(reader["Name"]);
+                total += item.Amount;
             }
 
-            conn.Close();
+            Console.WriteLine(total);
 
             try
             {
-                int x = 10;
-                int y = 0;
-                Console.WriteLine(x / y);
+                string x = null;
+                Console.WriteLine(x.Length);
             }
             catch
             {
             }
 
             GC.Collect();
+
+            Console.WriteLine("End");
         }
 
-        public Dictionary<int, string> GetEmployees()
+        public void SendEmail(string email, string message)
         {
-            return Employees;
+            Console.WriteLine("Sending mail to " + email);
         }
+    }
+
+    public class Order
+    {
+        public int Id;
+        public decimal Amount;
     }
 }
