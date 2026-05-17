@@ -47,7 +47,7 @@ namespace BadCodeSample
 
                         Task.Run(() =>
                         {
-                            Console.WriteLine("Background sync");
+                            Console.WriteLine("Background syjnc");
                         });
                     }
                 }
